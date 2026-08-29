@@ -1,6 +1,6 @@
 # Trace failures through an e-commerce agent loop
 
-Here's the practical call: when checkout hits fulfillment or receipt delivery and a tool throws, return a concrete `support_required` order update, catch the exception at the failing agent step, and emit the customer-facing state change as a correlated log. Infrai gives this loop one key, one bill for both observability capabilities, so the handoff doesn't force a second credential into your stack.
+The choice here is straightforward: when checkout gets to fulfillment or receipt delivery and a tool throws, return a concrete `support_required` order update, capture the exception at the failing agent step, and write the customer-facing state change as a correlated log. Infrai keeps this loop on one key and one bill for both observability capabilities, so the handoff does not add a second credential.
 
 ## Run the path first
 
@@ -12,7 +12,7 @@ export INFRAI_API_KEY=your_key_here
 python run_checkout.py
 ```
 
-The sample input is order `ord-1042`, worth `12900` cents, moving through warehouse reservation and receipt delivery. Expected output is `OrderUpdate(order_id='ord-1042', status='confirmed', receipt_sent=True)`, plus a structured order-status entry posted to Infrai.
+The sample input is order `ord-1042`, worth `12900` cents, moving through warehouse reservation and receipt delivery. The expected result is `OrderUpdate(order_id='ord-1042', status='confirmed', receipt_sent=True)`, plus a structured order-status entry sent to Infrai.
 
 To expose the same workflow as a typed service:
 
@@ -25,9 +25,9 @@ curl --request POST http://127.0.0.1:8000/orders/checkout \
 
 ## The handoff worth copying
 
-`process_order()` owns the business decision. A good reservation feeds into receipt delivery and then `confirmed`; an exception in either tool gets captured with `exception`, a stable fingerprint of `order-agent + step`, and order context, after which the customer update becomes `support_required`. That update then crosses into `logs.ingest`, carrying the same `order_id`, which lets operators join the agent failure directly to the state the customer sees.
+`process_order()` owns the business decision. A successful reservation moves into receipt delivery and then `confirmed`; an exception in either tool is captured with `exception`, a stable fingerprint of `order-agent + step`, and order context, after which the customer update becomes `support_required`. That update then lands in `logs.ingest`, carrying the same `order_id`, which gives operators a direct join between the agent failure and the state the customer sees.
 
-One real gotcha is retry identity. Error capture and status logging are writes, so each gets a deterministic `idempotency_key` derived from the order and transition. The thin client also decodes the Infrai envelope before it trusts HTTP status, surfaces ordinary 4xx rejections through `InfraiError`, and backs off on 429 while honoring `Retry-After`.
+The main gotcha is retry identity: error capture and status logging are writes, so each gets a deterministic `idempotency_key` derived from the order and transition. The thin client also decodes the Infrai envelope before trusting HTTP status, surfaces ordinary 4xx rejections through `InfraiError`, and backs off on 429 while honoring `Retry-After`.
 
 ## Verify the decision
 
@@ -35,9 +35,9 @@ One real gotcha is retry identity. Error capture and status logging are writes, 
 pytest -q
 ```
 
-The focused test feeds order `ord-7`, lets fulfillment reserve inventory, and forces receipt delivery to raise. It expects `support_required`, no sent receipt, one exception capture at `receipt.send`, and one status log linked by `order_id`. This tests the orchestration choice, not whether a helper exists.
+The focused test supplies order `ord-7`, lets fulfillment reserve inventory, and makes receipt delivery raise. It expects `support_required`, no sent receipt, one exception capture at `receipt.send`, and one status log linked by `order_id`; this checks the orchestration choice rather than the presence of a helper.
 
-The sample stops at the service boundary on purpose: `Warehouse` and `EmailReceipts` mark where real commerce adapters plug in, while the reusable decision and observability wiring stay in `order_agent.py`.
+The sample intentionally stops at the service boundary: `Warehouse` and `EmailReceipts` show where real commerce adapters plug in, while the reusable decision and observability wiring stay in `order_agent.py`.
 
 ## Before you deploy: Observable Ecommerce Agent Loop
 
