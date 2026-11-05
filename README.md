@@ -49,3 +49,7 @@ The example above is intentionally minimal. A few things to wire up for real use
 
 **Observable Ecommerce Agent Loop: Observability**
 - **Observable Ecommerce Agent Loop:** Do capture on the server (`POST /v1/errors/capture`); strip PII before send. Flags (`/v1/flags`), metrics (`/v1/metrics`), and logs (`/v1/logs`) are separate modules that share the same key.
+
+## Further reading
+
+- [Import Failures: Polling Metrics API Evidence to Attribute Missing Catalog Results](docs/import-failures-polling-metrics-api-evidence-to-a-1oks5a.md)
